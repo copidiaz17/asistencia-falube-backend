@@ -140,6 +140,33 @@ router.post("/:obraId/asistencia", authMiddleware, hasRole([ROLES.ADMIN, ROLES.O
   }
 });
 
+// PATCH /api/obras/:obraId/asistencia/editar-horario  — solo admin@admin.com
+router.patch("/:obraId/asistencia/editar-horario", authMiddleware, async (req, res) => {
+  try {
+    if (!req.user || req.user.email !== "admin@admin.com") {
+      return res.status(403).json({ error: "Solo el administrador puede editar horarios de fechas anteriores." });
+    }
+    const { obraId } = req.params;
+    const { fecha, registros } = req.body;
+    if (!fecha || !Array.isArray(registros) || registros.length === 0) {
+      return res.status(400).json({ message: "Fecha y registros son requeridos." });
+    }
+    for (const r of registros) {
+      await Asistencia.update(
+        {
+          horarioIngreso: r.horarioIngreso || null,
+          horarioSalida:  r.horarioSalida  || null,
+        },
+        { where: { obraId, empleadoId: r.empleadoId, fecha } }
+      );
+    }
+    return res.json({ ok: true, message: "Horarios actualizados correctamente." });
+  } catch (e) {
+    console.error("Error editando horarios:", e);
+    return res.status(500).json({ error: "Error al editar horarios." });
+  }
+});
+
 // GET /api/obras/:obraId/asistencia/historial
 router.get("/:obraId/asistencia/historial", authMiddleware, hasRole([ROLES.ADMIN, ROLES.OPERATOR, ROLES.VIEWER]), async (req, res) => {
   try {
